@@ -1,5 +1,5 @@
 {
-    "name": "toxyTech/api",
+    "name": "toxy-tech/api",
     "description": "API package for ToxyTech CMS",
     "type": "package",
     "license": "MIT",
@@ -9,7 +9,7 @@
         "toxyTech platform",
         "toxyTech api"
     ],
-    "homepage": "https://toxyTech.com",
+    "homepage": "https://toxytech.com",
     "authors": [
         {
             "name": "ToxyTech Technologies",
