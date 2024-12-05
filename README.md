@@ -44,7 +44,7 @@ If you discover any security related issues, please email contact@toxyTech.com i
 
 ## Credits
 
-- [ToxyTech Technologies](https://github.com/toxyTech)
+- [ToxyTech Technologies](https://github.com/toxy-tech)
 - [All Contributors](../../contributors)
 
 ## License
