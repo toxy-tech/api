@@ -5,6 +5,7 @@ namespace ToxyTech\Api\Http\Controllers;
 use App\Http\Controllers\Controller;
 use ToxyTech\Api\Facades\ApiHelper;
 use ToxyTech\Api\Http\Resources\UserResource;
+use ToxyTech\Base\Facades\BaseHelper;
 use ToxyTech\Base\Http\Responses\BaseHttpResponse;
 use ToxyTech\Media\Facades\RvMedia;
 use Exception;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -73,11 +75,10 @@ class ProfileController extends Controller
     /**
      * Update profile
      *
-     * @bodyParam first_name string required First name.
-     * @bodyParam last_name string required Last name.
+     * @bodyParam name string required Name.
      * @bodyParam email string Email.
-     * @bodyParam dob string required Date of birth.
-     * @bodyParam gender string Gender
+     * @bodyParam dob date nullable Date of birth (format: Y-m-d).
+     * @bodyParam gender string Gender (male, female, other).
      * @bodyParam description string Description
      * @bodyParam phone string required Phone.
      *
@@ -89,13 +90,20 @@ class ProfileController extends Controller
         $userId = $request->user()->getKey();
 
         $validator = Validator::make($request->input(), [
-            'first_name' => 'required|max:120|min:2',
-            'last_name' => 'required|max:120|min:2',
-            'phone' => 'required|max:15|min:8',
-            'dob' => 'required|max:15|min:8',
-            'gender' => 'nullable',
-            'description' => 'nullable',
-            'email' => 'nullable|max:60|min:6|email|unique:' . ApiHelper::getTable() . ',email,' . $userId,
+            'first_name' => ['nullable', 'required_without:name', 'string', 'max:120', 'min:2'],
+            'last_name' => ['nullable', 'required_without:name', 'string', 'max:120', 'min:2'],
+            'name' => ['nullable', 'required_without:first_name', 'string', 'max:120', 'min:2'],
+            'phone' => ['nullable', 'string', ...BaseHelper::getPhoneValidationRule(true)],
+            'dob' => ['nullable', 'sometimes', 'date_format:' . BaseHelper::getDateFormat(), 'max:20'],
+            'gender' => ['nullable', 'string', Rule::in(['male', 'female', 'other'])],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'email' => [
+                'nullable',
+                'max:60', 
+                'min:6', 
+                'email',
+                'unique:' . ApiHelper::getTable() . ',email,' . $userId,
+            ],
         ]);
 
         if ($validator->fails()) {

@@ -1,21 +1,21 @@
 <?php
 
-use ToxyTech\Base\Facades\BaseHelper;
+use ToxyTech\Api\Http\Controllers\ApiController;
+use ToxyTech\Api\Http\Controllers\SanctumTokenController;
+use ToxyTech\Base\Facades\AdminHelper;
 use Illuminate\Support\Facades\Route;
 
-Route::group(['namespace' => 'ToxyTech\Api\Http\Controllers', 'middleware' => ['web', 'core']], function () {
-    Route::group(['prefix' => BaseHelper::getAdminPrefix(), 'middleware' => 'auth'], function () {
-        Route::group(['prefix' => 'settings/api'], function () {
-            Route::get('', [
-                'as' => 'api.settings',
-                'uses' => 'ApiController@settings',
-            ]);
+AdminHelper::registerRoutes(function () {
+    Route::name('api.')->prefix('settings/api')->group(function () {
+        Route::prefix('sanctum-token')->name('sanctum-token.')->group(function () {
+            Route::resource('/', SanctumTokenController::class)
+                ->parameters(['' => 'sanctum-token'])
+                ->except('edit', 'update', 'show');
+        });
 
-            Route::post('', [
-                'as' => 'api.settings.update',
-                'uses' => 'ApiController@storeSettings',
-                'permission' => 'api.settings',
-            ]);
+        Route::group(['permission' => 'api.settings'], function () {
+            Route::get('/', [ApiController::class, 'edit'])->name('settings');
+            Route::put('/', [ApiController::class, 'update'])->name('settings.update');
         });
     });
 });

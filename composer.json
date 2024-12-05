@@ -1,19 +1,19 @@
 {
-    "name": "toxy-tech/api",
+    "name": "botble/api",
     "description": "API package for ToxyTech CMS",
     "type": "package",
     "license": "MIT",
     "keywords": [
-        "toxyTech",
-        "toxyTech cms",
-        "toxyTech platform",
-        "toxyTech api"
+        "botble",
+        "botble cms",
+        "botble platform",
+        "botble api"
     ],
-    "homepage": "https://toxytech.com",
+    "homepage": "https://botble.com",
     "authors": [
         {
             "name": "ToxyTech Technologies",
-            "email": "contact@toxyTech.com"
+            "email": "contact@botble.com"
         }
     ],
     "autoload": {

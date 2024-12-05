@@ -2,15 +2,15 @@
 
 namespace ToxyTech\Api\Http\Requests;
 
-use ToxyTech\Base\Rules\OnOffRule;
 use ToxyTech\Support\Http\Requests\Request;
 
-class ApiSettingRequest extends Request
+class StoreSanctumTokenRequest extends Request
 {
     public function rules(): array
     {
         return [
-            'api_enabled' => [new OnOffRule()],
+            'name' => ['required', 'string', 'max:255'],
+            'abilities' => ['nullable', 'array'],
         ];
     }
 }
