@@ -2,7 +2,6 @@
 
 namespace ToxyTech\Api\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use ToxyTech\Api\Facades\ApiHelper;
 use ToxyTech\Api\Http\Requests\ResendEmailVerificationRequest;
@@ -10,7 +9,7 @@ use ToxyTech\Base\Http\Responses\BaseHttpResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-class VerificationController extends Controller
+class VerificationController extends BaseApiController
 {
     /**
      * Resend email verification

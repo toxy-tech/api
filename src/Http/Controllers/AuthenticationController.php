@@ -2,7 +2,6 @@
 
 namespace ToxyTech\Api\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use ToxyTech\Api\Facades\ApiHelper;
 use ToxyTech\Api\Http\Requests\CheckEmailRequest;
@@ -15,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-class AuthenticationController extends Controller
+class AuthenticationController extends BaseApiController
 {
     /**
      * Register
@@ -161,7 +160,7 @@ class AuthenticationController extends Controller
         $user = ApiHelper::newModel()->where('email', $request->input('email'))->first();
 
         $data = [
-            'exists' => $user ? true : false,
+            'exists' => (bool) $user,
         ];
 
         if ($user) {

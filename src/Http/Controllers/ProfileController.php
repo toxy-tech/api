@@ -2,12 +2,14 @@
 
 namespace ToxyTech\Api\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use ToxyTech\Api\Facades\ApiHelper;
+use ToxyTech\Api\Http\Requests\UpdateUserSettingsRequest;
 use ToxyTech\Api\Http\Resources\UserResource;
+use ToxyTech\Api\Models\UserSetting;
 use ToxyTech\Base\Facades\BaseHelper;
 use ToxyTech\Base\Http\Responses\BaseHttpResponse;
 use ToxyTech\Media\Facades\RvMedia;
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -15,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
-class ProfileController extends Controller
+class ProfileController extends BaseApiController
 {
     /**
      * Get the user profile information.
@@ -87,21 +89,22 @@ class ProfileController extends Controller
      */
     public function updateProfile(Request $request, BaseHttpResponse $response)
     {
-        $userId = $request->user()->getKey();
+        $user = $request->user();
+        $userId = $user->getKey();
 
         $validator = Validator::make($request->input(), [
             'first_name' => ['nullable', 'required_without:name', 'string', 'max:120', 'min:2'],
             'last_name' => ['nullable', 'required_without:name', 'string', 'max:120', 'min:2'],
             'name' => ['nullable', 'required_without:first_name', 'string', 'max:120', 'min:2'],
             'phone' => ['nullable', 'string', ...BaseHelper::getPhoneValidationRule(true)],
-            'dob' => ['nullable', 'sometimes', 'date_format:' . BaseHelper::getDateFormat(), 'max:20'],
+            'dob' => ['nullable', 'string', 'sometimes', 'date_format:' . BaseHelper::getDateFormat(), 'max:20'],
             'gender' => ['nullable', 'string', Rule::in(['male', 'female', 'other'])],
             'description' => ['nullable', 'string', 'max:1000'],
             'email' => [
                 'nullable',
-                'max:60', 
-                'min:6', 
                 'email',
+                'max:60',
+                'min:6',
                 'unique:' . ApiHelper::getTable() . ',email,' . $userId,
             ],
         ]);
@@ -114,7 +117,12 @@ class ProfileController extends Controller
         }
 
         try {
-            $request->user()->update($request->input());
+            $data = $validator->validated();
+            $user->fill($data);
+            if (! empty($data['dob'])) {
+                $user->dob = Carbon::parse($data['dob']);
+            }
+            $user->save();
 
             return $response
                 ->setData($request->user()->toArray())
@@ -130,6 +138,7 @@ class ProfileController extends Controller
      * Update password
      *
      * @bodyParam password string required The new password of user.
+     * @bodyParam old_password string required The current password of user.
      *
      * @group Profile
      * @authenticated
@@ -137,7 +146,8 @@ class ProfileController extends Controller
     public function updatePassword(Request $request, BaseHttpResponse $response)
     {
         $validator = Validator::make($request->input(), [
-            'password' => 'required|min:6|max:60',
+            'password' => ['required', 'string', 'min:6', 'max:60'],
+            'old_password' => ['required', 'string', 'min:6', 'max:60'],
         ]);
 
         if ($validator->fails()) {
@@ -147,10 +157,105 @@ class ProfileController extends Controller
                 ->setMessage(__('Data invalid!') . ' ' . implode(' ', $validator->errors()->all()) . '.');
         }
 
+        if (! Hash::check($request->input('old_password'), $request->user()->getAuthPassword())) {
+            return $response
+                ->setError()
+                ->setCode(403)
+                ->setMessage(__('Current password is not valid!'));
+        }
+
         $request->user()->update([
             'password' => Hash::make($request->input('password')),
         ]);
 
-        return $response->setMessage(trans('core/acl::users.password_update_success'));
+        return $response->setMessage(__('Update password successfully!'));
+    }
+
+    /**
+     * Get user settings
+     *
+     * @group Profile
+     * @authenticated
+     */
+    public function getSettings(Request $request, BaseHttpResponse $response)
+    {
+        $user = $request->user();
+        $userType = $this->getUserType($user);
+
+        $settings = UserSetting::getUserSettings($userType, $user->getKey());
+
+        // Set default values for common settings
+        $defaultSettings = [
+            'biometric_enabled' => false,
+            'notification_enabled' => true,
+            'language' => 'en',
+            'currency' => 'USD',
+            'theme' => 'light',
+            'timezone' => 'UTC',
+        ];
+
+        $settings = array_merge($defaultSettings, $settings);
+
+        return $response->setData($settings);
+    }
+
+    /**
+     * Update user settings
+     *
+     * @bodyParam biometric_enabled boolean Enable/disable biometric authentication.
+     * @bodyParam notification_enabled boolean Enable/disable notifications.
+     * @bodyParam language string User's preferred language.
+     * @bodyParam currency string User's preferred currency.
+     * @bodyParam theme string User's preferred theme (light, dark, auto).
+     * @bodyParam timezone string User's timezone.
+     *
+     * @group Profile
+     * @authenticated
+     */
+    public function updateSettings(UpdateUserSettingsRequest $request, BaseHttpResponse $response)
+    {
+        try {
+            $user = $request->user();
+            $userType = $this->getUserType($user);
+
+            $validatedData = $request->validated();
+
+            // Update each setting individually
+            foreach ($validatedData as $key => $value) {
+                UserSetting::setUserSetting($userType, $user->getKey(), $key, $value);
+            }
+
+            // Get updated settings to return
+            $updatedSettings = UserSetting::getUserSettings($userType, $user->getKey());
+
+            return $response
+                ->setData([
+                    'message' => __('Settings updated successfully!'),
+                    'settings' => $updatedSettings,
+                ])
+                ->setMessage(__('Settings updated successfully!'));
+        } catch (Exception $ex) {
+            return $response
+                ->setError()
+                ->setMessage($ex->getMessage());
+        }
+    }
+
+    /**
+     * Get user type based on model class
+     */
+    protected function getUserType($user): string
+    {
+        $class = get_class($user);
+
+        if (str_contains($class, 'Customer')) {
+            return 'customer';
+        }
+
+        if (str_contains($class, 'User')) {
+            return 'admin';
+        }
+
+        return 'user';
     }
 }

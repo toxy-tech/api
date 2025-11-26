@@ -2,10 +2,15 @@
 
 namespace ToxyTech\Api\Providers;
 
-use ToxyTech\Api\Facades\ApiHelper;
 use ToxyTech\Api\Commands\GenerateDocumentationCommand;
+use ToxyTech\Api\Commands\ProcessScheduledNotificationsCommand;
+use ToxyTech\Api\Commands\SendPushNotificationCommand;
+use ToxyTech\Api\Facades\ApiHelper;
+use ToxyTech\Api\Http\Middleware\ApiEnabledMiddleware;
+use ToxyTech\Api\Http\Middleware\ApiKeyMiddleware;
 use ToxyTech\Api\Http\Middleware\ForceJsonResponseMiddleware;
 use ToxyTech\Api\Models\PersonalAccessToken;
+use ToxyTech\Base\Events\SystemUpdateDBMigrated;
 use ToxyTech\Base\Facades\PanelSectionManager;
 use ToxyTech\Base\PanelSections\PanelSectionItem;
 use ToxyTech\Base\Supports\ServiceProvider;
@@ -46,17 +51,22 @@ class ApiServiceProvider extends ServiceProvider
             ->loadAndPublishConfigurations(['api', 'permissions'])
             ->loadAndPublishTranslations()
             ->loadMigrations()
-            ->loadAndPublishViews();
-
-        if (ApiHelper::enabled()) {
-            $this->loadRoutes(['api']);
-        }
+            ->loadAndPublishViews()
+            ->publishAssets()
+            ->loadRoutes(['api']);
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         $this->app['events']->listen(RouteMatched::class, function () {
-            if (ApiHelper::enabled()) {
-                $this->app['router']->pushMiddlewareToGroup('api', ForceJsonResponseMiddleware::class);
+            // Always add the API enabled middleware first
+            $this->app['router']->pushMiddlewareToGroup('api', ApiEnabledMiddleware::class);
+
+            // Add force JSON response middleware
+            $this->app['router']->pushMiddlewareToGroup('api', ForceJsonResponseMiddleware::class);
+
+            // Add API key middleware if API key is configured
+            if (ApiHelper::hasApiKey()) {
+                $this->app['router']->pushMiddlewareToGroup('api', ApiKeyMiddleware::class);
             }
         });
 
@@ -76,11 +86,33 @@ class ApiServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 GenerateDocumentationCommand::class,
+                ProcessScheduledNotificationsCommand::class,
+                SendPushNotificationCommand::class,
             ]);
         }
+
+        $this->app->booted(function () {
+            add_filter('core_acl_role_permissions', function (array $permissions) {
+                $apiPermissions = $this->app['config']->get('packages.api.permissions', []);
+
+                if (! $apiPermissions) {
+                    return $permissions;
+                }
+
+                foreach ($apiPermissions as $permission) {
+                    $permissions[$permission['flag']] = $permission;
+                }
+
+                return $permissions;
+            }, 120);
+        });
+
+        $this->app['events']->listen(SystemUpdateDBMigrated::class, function () {
+            $this->app['migrator']->run($this->getPath('database/migrations'));
+        });
     }
 
-    protected function getPath(string|null $path = null): string
+    protected function getPath(?string $path = null): string
     {
         return __DIR__ . '/../..' . ($path ? '/' . ltrim($path, '/') : '');
     }

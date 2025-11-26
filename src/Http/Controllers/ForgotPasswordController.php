@@ -2,13 +2,12 @@
 
 namespace ToxyTech\Api\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use ToxyTech\ACL\Traits\SendsPasswordResetEmails;
 use ToxyTech\Api\Facades\ApiHelper;
 use ToxyTech\Api\Http\Requests\ForgotPasswordRequest;
 use Illuminate\Support\Facades\Password;
 
-class ForgotPasswordController extends Controller
+class ForgotPasswordController extends BaseApiController
 {
     use SendsPasswordResetEmails;
 
